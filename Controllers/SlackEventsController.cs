@@ -74,11 +74,11 @@ namespace imajin.Controllers
         }
 
         private async Task<ActionResult> DoMention(string body) {
-            BackgroundJob.Enqueue(() => DoMention_Job(logger, body));
+            BackgroundJob.Enqueue(() => DoMention_Job(body));
             return new OkResult();
         }
 
-        public static async Task DoMention_Job(ILogger logger, string body) {
+        public static async Task DoMention_Job(string body) {
             var req = JObject.Parse(body);
 
             var mentionedBy = (string) req["event"]["user"];
@@ -98,13 +98,13 @@ namespace imajin.Controllers
             var result = await client.Images.SearchAsync(string.Join(" ", terms), count: 3, license: "All", safeSearch: "Strict");
 
             if (result.Value.Count < 1) {
-                await PostImageToSlack(logger, channel, null);
+                await PostImageToSlack(channel, null);
             } else {
-                await PostImageToSlack(logger, channel, result.Value.Take(3).OrderBy(_ => Guid.NewGuid()).First().ThumbnailUrl);
+                await PostImageToSlack(channel, result.Value.Take(3).OrderBy(_ => Guid.NewGuid()).First().ThumbnailUrl);
             }
         }
 
-        private static async Task PostImageToSlack(ILogger logger, string channel, string thumbnailUrl)
+        private static async Task PostImageToSlack(string channel, string thumbnailUrl)
         {
             using (var client = new HttpClient()) {
                 object payload;
@@ -145,9 +145,7 @@ namespace imajin.Controllers
 
                 var reslut = await client.SendAsync(msg);
 
-                var res = await reslut.Content.ReadAsStringAsync();
-
-                logger.LogInformation(res);
+                await reslut.Content.ReadAsStringAsync();
             }
         }
 
