@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Hangfire;
+using Hangfire.Dashboard;
 using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -58,7 +59,9 @@ namespace imajin
                 app.UseHsts();
             }
 
-            app.UseHangfireDashboard();
+            app.UseHangfireDashboard(options: new DashboardOptions() {
+                Authorization = new IDashboardAuthorizationFilter[] {}
+            });
 
             //app.UseHttpsRedirection();
             app.UseMvc();
