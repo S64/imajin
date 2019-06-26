@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Hangfire;
+using Hangfire.Annotations;
 using Hangfire.Dashboard;
 using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Builder;
@@ -60,12 +61,23 @@ namespace imajin
             }
 
             app.UseHangfireDashboard(options: new DashboardOptions() {
-                Authorization = new IDashboardAuthorizationFilter[] {}
+                Authorization = new IDashboardAuthorizationFilter[] {
+                    new MyDashboardAF()
+                }
             });
 
             //app.UseHttpsRedirection();
             app.UseMvc();
         }
+    }
+
+    class MyDashboardAF : IDashboardAuthorizationFilter
+    {
+        public bool Authorize([NotNull] DashboardContext context)
+        {
+            return true;
+        }
+
     }
 
 }
