@@ -13,6 +13,7 @@ using System.IO;
 using System.Net;
 using Newtonsoft.Json;
 using System.Text;
+using Hangfire;
 
 namespace imajin.Controllers
 {
@@ -73,6 +74,11 @@ namespace imajin.Controllers
         }
 
         private async Task<ActionResult> DoMention(string body) {
+            BackgroundJob.Enqueue(() => DoMention_Job(logger, body));
+            return new OkResult();
+        }
+
+        public static async Task DoMention_Job(ILogger logger, string body) {
             var req = JObject.Parse(body);
 
             var mentionedBy = (string) req["event"]["user"];
@@ -82,7 +88,7 @@ namespace imajin.Controllers
             var splitted = text.Split(new char[] { ' ', '　' }).ToArray();
 
             if (splitted.Length < 1 || splitted[0].IndexOf("<@") != 0) {
-                return new OkResult(); // ignore
+                return; // ignore
             }
 
             var terms = splitted.Skip(1).ToArray();
@@ -92,15 +98,13 @@ namespace imajin.Controllers
             var result = await client.Images.SearchAsync(string.Join(" ", terms), count: 3, license: "All", safeSearch: "Strict");
 
             if (result.Value.Count < 1) {
-                await PostImageToSlack(channel, null);
+                await PostImageToSlack(logger, channel, null);
             } else {
-                await PostImageToSlack(channel, result.Value.Take(3).OrderBy(_ => Guid.NewGuid()).First().ThumbnailUrl);
+                await PostImageToSlack(logger, channel, result.Value.Take(3).OrderBy(_ => Guid.NewGuid()).First().ThumbnailUrl);
             }
-
-            return new OkResult();
         }
 
-        private async Task PostImageToSlack(string channel, string thumbnailUrl)
+        private static async Task PostImageToSlack(ILogger logger, string channel, string thumbnailUrl)
         {
             using (var client = new HttpClient()) {
                 object payload;
