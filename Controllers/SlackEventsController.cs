@@ -108,26 +108,28 @@ namespace imajin.Controllers
             var parser = new CommandLineApplication();
             var limit = parser.Option<int>("--limit <LIMITATION>", "Limitation", CommandOptionType.SingleValue);
             var show = parser.Option<int>("--show <COUNT>", "Count of attachment", CommandOptionType.SingleValue);
+            var random = parser.Option<bool>("--random", "Sort by random", CommandOptionType.NoValue);
             var terms = parser.Argument<string>("Terms", "Search terms", multipleValues: true);
 
             parser.OnExecute(async () => {
                 var limitation = limit.HasValue() ? limit.ParsedValue : 3;
                 var client = new ImageSearchAPI(new ApiKeyServiceClientCredentials(Environment.GetEnvironmentVariable("IMAJIN_BING_KEY")));
 
-                var result = await client.Images.SearchAsync(
+                var result = (await client.Images.SearchAsync(
                     string.Join(" ", terms.Values),
                     count: limitation,
                     license: "All",
                     safeSearch: "Strict"
-                );
+                )).Value;
 
-                if (result.Value.Count < 1) {
+                if (result.Count < 1) {
                     await PostImageToSlack(channel, null);
                 } else {
                     await PostImageToSlack(
                         channel,
-                        result.Value.OrderBy(_ => Guid.NewGuid())
-                            .Take(show.HasValue() ? show.ParsedValue : 1).Select(x => x.ThumbnailUrl)
+                        (random.HasValue() ? result.OrderBy(_ => Guid.NewGuid()).ToArray() : result)
+                            .Take(show.HasValue() ? show.ParsedValue : 1)
+                            .Select(x => x.ThumbnailUrl)
                             .ToArray()
                     );
                 }
