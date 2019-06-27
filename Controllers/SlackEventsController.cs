@@ -107,6 +107,7 @@ namespace imajin.Controllers
 
             var parser = new CommandLineApplication();
             var limit = parser.Option<int>("--limit <LIMITATION>", "Limitation", CommandOptionType.SingleValue);
+            var show = parser.Option<int>("--show <COUNT>", "Count of attachment", CommandOptionType.SingleValue);
             var terms = parser.Argument<string>("Terms", "Search terms", multipleValues: true);
 
             parser.OnExecute(async () => {
@@ -123,7 +124,12 @@ namespace imajin.Controllers
                 if (result.Value.Count < 1) {
                     await PostImageToSlack(channel, null);
                 } else {
-                    await PostImageToSlack(channel, result.Value.Take(3).OrderBy(_ => Guid.NewGuid()).First().ThumbnailUrl);
+                    await PostImageToSlack(
+                        channel,
+                        result.Value.OrderBy(_ => Guid.NewGuid())
+                            .Take(show.HasValue() ? show.ParsedValue : 1).Select(x => x.ThumbnailUrl)
+                            .ToArray()
+                    );
                 }
             });
 
@@ -134,22 +140,22 @@ namespace imajin.Controllers
             parser.Execute(args);
         }
 
-        private static async Task PostImageToSlack(string channel, string thumbnailUrl)
+        private static async Task PostImageToSlack(string channel, string[] thumbnailUrls)
         {
             using (var client = new HttpClient()) {
                 object payload;
 
-                if (thumbnailUrl != null) {
+                if (thumbnailUrls != null) {
                     payload = new ImagePost() {
                         token = getToken(),
                         channel = channel,
                         text = "",
-                        attachments = new List<ImagePostAttachment>() {
-                            new ImagePostAttachment() {
-                                fallback = thumbnailUrl,
-                                image_url = thumbnailUrl
-                            }
-                        }
+                        attachments = thumbnailUrls.Select(x => {
+                            return new ImagePostAttachment() {
+                                fallback = x,
+                                image_url = x
+                            };
+                        }).ToList()
                     };
                 } else {
                     payload = new TextPost() {
