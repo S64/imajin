@@ -71,7 +71,7 @@ namespace imajin.Controllers
             switch ( (string) req["event"]["type"] ) {
                 case "app_mention":
                     return await DoMention(
-                        (string)req["event"]["event_ts"],
+                        (string)req["event"]["ts"],
                         body
                     );
             }
