@@ -1,3 +1,3 @@
 # imajin
 
-Genie of image search 🧞
+Genie of the image search for enlargement your imagines 🧞
