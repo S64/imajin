@@ -14,6 +14,7 @@ using System.Net;
 using Newtonsoft.Json;
 using System.Text;
 using Hangfire;
+using McMaster.Extensions.CommandLineUtils;
 
 namespace imajin.Controllers
 {
@@ -102,17 +103,33 @@ namespace imajin.Controllers
                 return; // ignore
             }
 
-            var terms = splitted.Skip(1).ToArray();
+            var args = splitted.Skip(1).ToArray();
 
-            var client = new ImageSearchAPI(new ApiKeyServiceClientCredentials(Environment.GetEnvironmentVariable("IMAJIN_BING_KEY")));
+            var parser = new CommandLineApplication();
+            var terms = parser.Argument("Terms", "Search terms", multipleValues: true);
 
-            var result = await client.Images.SearchAsync(string.Join(" ", terms), count: 3, license: "All", safeSearch: "Strict");
+            parser.OnExecute(async () => {
+                var client = new ImageSearchAPI(new ApiKeyServiceClientCredentials(Environment.GetEnvironmentVariable("IMAJIN_BING_KEY")));
 
-            if (result.Value.Count < 1) {
-                await PostImageToSlack(channel, null);
-            } else {
-                await PostImageToSlack(channel, result.Value.Take(3).OrderBy(_ => Guid.NewGuid()).First().ThumbnailUrl);
-            }
+                var result = await client.Images.SearchAsync(
+                    string.Join(" ", terms.Values),
+                    count: 3,
+                    license: "All",
+                    safeSearch: "Strict"
+                );
+
+                if (result.Value.Count < 1) {
+                    await PostImageToSlack(channel, null);
+                } else {
+                    await PostImageToSlack(channel, result.Value.Take(3).OrderBy(_ => Guid.NewGuid()).First().ThumbnailUrl);
+                }
+            });
+
+            parser.OnValidationError((e) => {
+                throw new ArgumentException(e.ToString());
+            });
+
+            parser.Execute(args);
         }
 
         private static async Task PostImageToSlack(string channel, string thumbnailUrl)
