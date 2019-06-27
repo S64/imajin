@@ -106,14 +106,16 @@ namespace imajin.Controllers
             var args = splitted.Skip(1).ToArray();
 
             var parser = new CommandLineApplication();
-            var terms = parser.Argument("Terms", "Search terms", multipleValues: true);
+            var limit = parser.Option<int>("--limit <LIMITATION>", "Limitation", CommandOptionType.SingleValue);
+            var terms = parser.Argument<string>("Terms", "Search terms", multipleValues: true);
 
             parser.OnExecute(async () => {
+                var limitation = limit.HasValue() ? limit.ParsedValue : 3;
                 var client = new ImageSearchAPI(new ApiKeyServiceClientCredentials(Environment.GetEnvironmentVariable("IMAJIN_BING_KEY")));
 
                 var result = await client.Images.SearchAsync(
                     string.Join(" ", terms.Values),
-                    count: 3,
+                    count: limitation,
                     license: "All",
                     safeSearch: "Strict"
                 );
