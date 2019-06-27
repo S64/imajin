@@ -24,6 +24,9 @@ namespace imajin.Controllers
 
         private readonly ILogger logger;
 
+        //FIXME
+        private readonly HashSet<string> enqueuedPosts = new HashSet<string>();
+
         public SlackEventsController(ILoggerFactory loggerFactory) {
             logger = loggerFactory.CreateLogger<SlackEventsController>();
         }
@@ -67,14 +70,22 @@ namespace imajin.Controllers
 
             switch ( (string) req["event"]["type"] ) {
                 case "app_mention":
-                    return await DoMention(body);
+                    return await DoMention(
+                        (string)req["event"]["event_ts"],
+                        body
+                    );
             }
 
             throw new InvalidOperationException();
         }
 
-        private async Task<ActionResult> DoMention(string body) {
-            BackgroundJob.Enqueue(() => DoMention_Job(body));
+        private async Task<ActionResult> DoMention(string postId, string body) {
+            lock (enqueuedPosts) {
+                if (!enqueuedPosts.Contains(postId)) {
+                    BackgroundJob.Enqueue(() => DoMention_Job(body));
+                    enqueuedPosts.Add(postId);
+                }
+            }
             return new OkResult();
         }
 
